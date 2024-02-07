@@ -1,4 +1,4 @@
-from odoo import models, fields
+from odoo import models, fields, api
 from datetime import datetime, timedelta, date
 import dateutil
 import xlsxwriter
@@ -250,7 +250,7 @@ class LicenseExpiryReport(models.Model):
         mail_mail.send()
         return True
 
-    def send_license_expiry_report(self, recipient_email, sender_email, cc_email):
+    def send_license_expiration_report(self, recipient_email, sender_email, cc_email):
 
         data_dictionary = self.get_and_format_data()
 
