@@ -1,4 +1,4 @@
-from odoo import models, fields, api
+from odoo import models, fields
 from datetime import datetime, timedelta, date
 import dateutil
 import xlsxwriter
@@ -13,7 +13,7 @@ _logger = logging.getLogger(__name__)
 class ProductTemplate(models.Model):
     _inherit = 'product.product'
 
-    licence_length_months = fields.Integer(string='	Licence Length (Months)')
+    licence_length_months = fields.Integer(string='Licence Length (Months)')
 
 
 class LicenseExpiryReport(models.Model):
