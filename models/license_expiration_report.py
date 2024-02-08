@@ -1,6 +1,6 @@
 from odoo import models, fields
-from datetime import datetime, timedelta, date
-import dateutil
+from datetime import date, timedelta
+import dateutil.relativedelta
 import xlsxwriter
 import io
 import base64
@@ -13,59 +13,83 @@ _logger = logging.getLogger(__name__)
 class ProductTemplate(models.Model):
     _inherit = 'product.product'
 
+    # Field to store license length in months
     licence_length_months = fields.Integer(string='Licence Length (Months)')
 
 
 class LicenseExpiryReport(models.Model):
-    _inherit = 'account.move'  # ??
+    _inherit = 'account.move'
 
     # LIVE
     # TIME_LIMITS = [30, 60, 90]
     # TEST
     TIME_LIMITS = [3, 6, 9]
     HEADER_TEXT = 'Licence Expiration Report'
-    HEADER_VALUES_LIST = ['Note', 'Product Code', 'Product Name', 'Invoice Number', 'Invoice Date',
-                          'Licence Length (Months)', 'Expiration date', 'Sale Order', 'Product Variant ID']
+    HEADER_VALUES_LIST = [
+        'Note', 'Product Code', 'Product Name', 'Invoice Number',
+        'Invoice Date', 'Licence Length (Months)', 'Expiration date',
+        'Sale Order', 'Product Variant ID'
+    ]
 
     def get_sale_order_name(self, inv_line):
-        so_name_list = []
-        if not inv_line.sale_line_ids:
-            return ''
-        for so_line in inv_line.sale_line_ids:
-            so_name_list.append(so_line.order_id.name)
-
-        return ', '.join(so_name_list)
+        """
+        Extracts and concatenates sale order names from invoice lines.
+        """
+        so_name_list = [
+            so_line.order_id.name for so_line in inv_line.sale_line_ids]
+        return ', '.join(so_name_list) if so_name_list else ''
 
     def process_field(self, field_value):
-        """ Process and format a field value for report. """
+        """
+          Formats a field value for report.
+        """
         return field_value or '/'
+
+    def process_invoice_line(self, inv_line, invoice, product, days_until_expiry):
+        """
+        Processes and formats an invoice line for report inclusion.
+        """
+        expiration_date = invoice.invoice_date + \
+            dateutil.relativedelta.relativedelta(
+                months=product.licence_length_months)
+
+        return [
+            f'{days_until_expiry} days until expiration',
+            self.process_field(inv_line.product_id.default_code),
+            self.process_field(inv_line.product_id.name),
+            self.process_field(invoice.name),
+            self.process_field(invoice.invoice_date.strftime('%Y-%m-%d')),
+            self.process_field(product.licence_length_months),
+            self.process_field(expiration_date.strftime('%Y-%m-%d')),
+            self.process_field(self.get_sale_order_name(inv_line)),
+            self.process_field(inv_line.product_id.id),
+        ]
 
     def get_and_format_data(self):
         """
-        Example of returned data:
-        {product.product(8927,): {3: sale.order(32718, 23791), 6: sale.order(), 9: sale.order()},
-        product.product(8828,): {3: sale.order(), 6: sale.order(60105,), 9: sale.order(59561, 59086)}}
+        Generates a dictionary with report data structured as:
+        {product: {days_until_expiry: [[invoice_line_data], ...]}, ...}
         """
         today_date = date.today()
         report_data_dict = {}
 
-        # Find all Products where licence_length_months > 0
-        all_products = self.env['product.product'].search(
-            [('licence_length_months', '>', 0), ('active', 'in', [True, False])])
+        # Searching for products with a defined license length
+        all_products = self.env['product.product'].search([
+            ('licence_length_months', '>', 0),
+            ('active', 'in', [True, False])
+        ])
 
         if not all_products:
             _logger.warning('WARNING: No products found')
             return {}
 
+        # Looping through each product to populate report data
         for product in all_products:
-
             report_data_dict[product] = {}
-
             for days_until_expiry in self.TIME_LIMITS:
-
-                time_boundary = today_date + timedelta(
-                    days=days_until_expiry) - dateutil.relativedelta.relativedelta(
-                    months=product.licence_length_months)
+                time_boundary = today_date + timedelta(days=days_until_expiry) - \
+                    dateutil.relativedelta.relativedelta(
+                        months=product.licence_length_months)
 
                 invoices = self.env['account.move'].search([
                     ('invoice_line_ids.product_id', '=', product.id),
@@ -84,29 +108,13 @@ class LicenseExpiryReport(models.Model):
                         line for line in invoice.invoice_line_ids if line.product_id.id == product.id]
 
                     if not inv_lines:
-                        raise Warning('No INV lines found')
+                        _logger.warning('WARNING: No INV lines found')
                         continue
 
                     for inv_line in inv_lines:
-                        expiration_date = invoice.invoice_date + dateutil.relativedelta.relativedelta(
-                            months=product.licence_length_months)
+                        line_data = self.process_invoice_line(
+                            inv_line, invoice, product, days_until_expiry)
 
-                        line_data = [
-                            f'{days_until_expiry} days until expiration',
-                            self.process_field(
-                                inv_line.product_id.default_code),
-                            self.process_field(inv_line.product_id.name),
-                            self.process_field(invoice.name),
-                            # f'{time_boundary.strftime('%Y-%m-%d')}',
-                            self.process_field(
-                                invoice.invoice_date.strftime('%Y%m%d')),
-                            self.process_field(product.licence_length_months),
-                            self.process_field(
-                                expiration_date.strftime('%Y%m%d')),
-                            self.process_field(
-                                self.get_sale_order_name(inv_line)),
-                            self.process_field(inv_line.product_id.id),
-                        ]
                         inv_lines_data_list.append(line_data)
 
                     report_data_dict[product][days_until_expiry] = inv_lines_data_list
@@ -253,8 +261,6 @@ class LicenseExpiryReport(models.Model):
     def send_license_expiration_report(self, recipient_email, sender_email, cc_email):
 
         data_dictionary = self.get_and_format_data()
-
-        # raise Warning(f'\n\ndata_dictionary:\n{data_dictionary}\n\n')
 
         if not data_dictionary:
             _logger.warning('WARNING: data_dictionary was not created.')
