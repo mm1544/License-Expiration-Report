@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <!-- Inheriting existing form view and adding fields. -->
+  <record id="view_licence_length_months" model="ir.ui.view">
+    <field name="name">product.product.inherited.jtrs</field>
+    <field name="model">product.product</field>
+    <!--inherit_id: External ID of inherited view. -->
+    <field name="inherit_id" ref="product.product_normal_form_view"/>
+    <field name="arch" type="xml">
+      <xpath expr="//field[@name='categ_id']" position="after">
+        <field name="licence_length_months"/>
+      </xpath>
+    </field>
+  </record>
+</odoo>

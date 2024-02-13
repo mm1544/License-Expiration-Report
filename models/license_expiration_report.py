@@ -21,10 +21,7 @@ class ProductTemplate(models.Model):
 class LicenseExpirationReport(models.Model):
     _inherit = 'account.move'
 
-    # LIVE
     TIME_LIMITS = [30, 60, 90]
-    # TEST
-    # TIME_LIMITS = [3, 6, 9]
     HEADER_TEXT = 'Licence Expiration Report'
     HEADER_VALUES_LIST = [
         'Note', 'Product Code', 'Product Name', 'Invoice Number',
@@ -81,8 +78,6 @@ class LicenseExpirationReport(models.Model):
                 if value_list:  # Checks if the list is non-empty
                     return True
         return False
-
-        raise UserError(f'all_product_values:\n{all_product_values}')
 
     def get_and_format_data(self):
         """
@@ -279,6 +274,7 @@ class LicenseExpirationReport(models.Model):
             'attachment_ids': [(0, 0, {'name': attachment[0], 'datas': attachment[1]}) for attachment in attachments],
         })
         mail_mail.send()
+        self.log('Email was sent', 'send_email')
         return True
 
     def send_license_expiration_report(self, recipient_email, sender_email, cc_email):
@@ -288,8 +284,6 @@ class LicenseExpirationReport(models.Model):
         if not data_dictionary:
             _logger.warning('WARNING: data_dictionary was not created.')
             return
-
-        raise UserError(f'data_dictionary: {data_dictionary}')
 
         binary_data_report = self.generate_xlsx_file(data_dictionary)
 
