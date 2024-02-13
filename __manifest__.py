@@ -10,7 +10,7 @@
     'data': [
 
         # Sequence: security, data, wizards, views
-        'views/license_expiry_report.xml',
+        'views/license_expiration_report.xml',
         'views/licence_length_months.xml',
     ],
     'demo': [],
