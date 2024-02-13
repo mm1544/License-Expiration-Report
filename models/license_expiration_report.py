@@ -1,3 +1,4 @@
+from odoo.exceptions import UserError
 from odoo import models, fields
 from datetime import date, timedelta
 import dateutil.relativedelta
@@ -17,13 +18,13 @@ class ProductTemplate(models.Model):
     licence_length_months = fields.Integer(string='Licence Length (Months)')
 
 
-class LicenseExpiryReport(models.Model):
+class LicenseExpirationReport(models.Model):
     _inherit = 'account.move'
 
     # LIVE
-    # TIME_LIMITS = [30, 60, 90]
+    TIME_LIMITS = [30, 60, 90]
     # TEST
-    TIME_LIMITS = [3, 6, 9]
+    # TIME_LIMITS = [3, 6, 9]
     HEADER_TEXT = 'Licence Expiration Report'
     HEADER_VALUES_LIST = [
         'Note', 'Product Code', 'Product Name', 'Invoice Number',
@@ -64,6 +65,24 @@ class LicenseExpiryReport(models.Model):
             self.process_field(self.get_sale_order_name(inv_line)),
             self.process_field(inv_line.product_id.id),
         ]
+
+    def check_if_any_data_found(self, data_dict):
+        """
+        Checks if passed in dictionary contains data in nested lists. If no data found, returns False.
+
+        Args:
+            data_dict (dictionary)
+            Example:
+            {product.product(12846,): {30: [], 60: [], 90: []}, product.product(15643,): {30: [], 60: [], 90: []}, product.product(14851,): {30: [], 60: [], 90: []}}
+        Returns: True/False
+        """
+        for inner_dict in data_dict.values():
+            for value_list in inner_dict.values():
+                if value_list:  # Checks if the list is non-empty
+                    return True
+        return False
+
+        raise UserError(f'all_product_values:\n{all_product_values}')
 
     def get_and_format_data(self):
         """
@@ -118,6 +137,10 @@ class LicenseExpiryReport(models.Model):
                         inv_lines_data_list.append(line_data)
 
                     report_data_dict[product][days_until_expiry] = inv_lines_data_list
+
+        if not self.check_if_any_data_found(report_data_dict):
+            self.log('No data found', 'get_and_format_data')
+            return {}
 
         return report_data_dict
 
@@ -266,8 +289,25 @@ class LicenseExpiryReport(models.Model):
             _logger.warning('WARNING: data_dictionary was not created.')
             return
 
+        raise UserError(f'data_dictionary: {data_dictionary}')
+
         binary_data_report = self.generate_xlsx_file(data_dictionary)
 
         self.send_email(recipient_email, sender_email,
                         cc_email, binary_data_report)
         return True
+
+    def log(self, message, function_name):
+
+        # Create a log entry in ir.logging
+        self.env['ir.logging'].create({
+            'name': 'Licence Expiration Report',  # Name of the log
+            'type': 'server',  # Indicates that this log is from the server-side
+            'dbname': self.env.cr.dbname,  # Current database name
+            'level': 'info',  # Log level (info, warning, error)
+            'message': message,  # The main log message
+            'path': 'models.account.move',  # Path indicates the module/class path
+            # Method name or line number
+            'line': 'LicenseExpirationReport.log',
+            'func': f'__{function_name}__',  # Function name
+        })
