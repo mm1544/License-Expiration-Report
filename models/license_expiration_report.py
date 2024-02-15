@@ -26,7 +26,7 @@ class LicenseExpirationReport(models.Model):
     HEADER_VALUES_LIST = [
         'Note', 'Product Code', 'Product Name', 'Invoice Number',
         'Invoice Date', 'Licence Length (Months)', 'Expiration date',
-        'Sale Order', 'Product Variant ID'
+        'Sale Order', 'Customer', 'Salesperson', 'Product Variant ID'
     ]
 
     def get_sale_order_name(self, inv_line):
@@ -44,22 +44,26 @@ class LicenseExpirationReport(models.Model):
         return field_value or '/'
 
     def process_invoice_line(self, inv_line, invoice, product, days_until_expiry):
-        """
-        Processes and formats an invoice line for report inclusion.
-        """
-        expiration_date = invoice.invoice_date + \
-            dateutil.relativedelta.relativedelta(
-                months=product.licence_length_months)
+        if invoice.invoice_date and product.licence_length_months:
+            expiration_date = invoice.invoice_date + \
+                dateutil.relativedelta.relativedelta(
+                    months=product.licence_length_months)
+        else:
+            expiration_date = None
 
         return [
-            f'{days_until_expiry} days until expiration',
+            f'{days_until_expiry} days until expiration' if days_until_expiry else '/',
             self.process_field(inv_line.product_id.default_code),
             self.process_field(inv_line.product_id.name),
             self.process_field(invoice.name),
-            self.process_field(invoice.invoice_date.strftime('%Y-%m-%d')),
+            self.process_field(invoice.invoice_date.strftime(
+                '%Y-%m-%d')) if invoice.invoice_date else '/',
             self.process_field(product.licence_length_months),
-            self.process_field(expiration_date.strftime('%Y-%m-%d')),
+            self.process_field(expiration_date.strftime(
+                '%Y-%m-%d')) if expiration_date else '/',
             self.process_field(self.get_sale_order_name(inv_line)),
+            self.process_field(invoice.partner_id.display_name),
+            self.process_field(invoice.invoice_user_id.name),
             self.process_field(inv_line.product_id.id),
         ]
 
@@ -99,7 +103,10 @@ class LicenseExpirationReport(models.Model):
 
         # Looping through each product to populate report data
         for product in all_products:
-            report_data_dict[product] = {}
+            # OLD
+            # report_data_dict[product] = {}
+            # NEW / TEST
+            report_data_dict[product] = {days: [] for days in self.TIME_LIMITS}
             for days_until_expiry in self.TIME_LIMITS:
                 time_boundary = today_date + timedelta(days=days_until_expiry) - \
                     dateutil.relativedelta.relativedelta(
@@ -157,14 +164,13 @@ class LicenseExpirationReport(models.Model):
         # Seting the width of the columns
         # Headers are in the first row of data_matrix and their length determines the column width
         for col_num, header in enumerate(self.HEADER_VALUES_LIST):
-            ### TO DO ###
-            # column_width = len(header) + 30
-            if col_num == 0:
+            if col_num in [0]:
                 column_width = len(header) + 20
-            elif col_num == 2:
+            elif col_num in [9]:
+                column_width = len(header) + 10
+            elif col_num in [2, 8]:
                 column_width = len(header) + 30
             else:
-                # elif col_num in [1, 3, 4, 5, 6]:
                 column_width = len(header)
 
             # Set the column width
@@ -280,6 +286,7 @@ class LicenseExpirationReport(models.Model):
     def send_license_expiration_report(self, recipient_email, sender_email, cc_email):
 
         data_dictionary = self.get_and_format_data()
+        # raise UserError('bp1')
 
         if not data_dictionary:
             _logger.warning('WARNING: data_dictionary was not created.')
