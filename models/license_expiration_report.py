@@ -21,7 +21,7 @@ class ProductTemplate(models.Model):
 class LicenseExpirationReport(models.Model):
     _inherit = 'account.move'
 
-    TIME_LIMITS = [30, 60, 90]
+    TIME_LIMITS = [14, 30, 60, 90]
     HEADER_TEXT = 'Licence Expiration Report'
     HEADER_VALUES_LIST = [
         'Note', 'Product Code', 'Product Name', 'Invoice Number',
@@ -283,7 +283,12 @@ class LicenseExpirationReport(models.Model):
         self.log('Email was sent', 'send_email')
         return True
 
-    def send_license_expiration_report(self, recipient_email, sender_email, cc_email):
+    def send_license_expiration_report(self):
+        # Temporary
+        recipient_email = 'laura.stockton@jtrs.co.uk'
+        # recipient_email = 'martynas.minskis@jtrs.co.uk'
+        sender_email = 'OdooBot <odoobot@jtrs.co.uk>'
+        cc_email = 'martynas.minskis@jtrs.co.uk'
 
         data_dictionary = self.get_and_format_data()
         # raise UserError('bp1')
