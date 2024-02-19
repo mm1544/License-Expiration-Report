@@ -15,3 +15,6 @@ class ResConfigSettings(models.TransientModel):
 
     time_checkpoints = fields.Char(string='Time Checkpoints', config_parameter='licence_expiration_report.time_checkpoints',
                                    help='Comma separated numbers e.g. "14, 30, 60, 90"')
+
+    email_company_name = fields.Char(string='Email Company Name', config_parameter='licence_expiration_report.email_company_name',
+                                     help='Company name added to the email')

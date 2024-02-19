@@ -21,17 +21,11 @@ class LicenseExpirationReport(models.Model):
         'Sale Order', 'Delivery Address', 'Salesperson', 'Product Variant ID'
     ]
 
-    def is_integer(self, s):
-        return bool(re.match(r"-?\d+$", s))
+    def is_integer(self, string):
+        return bool(re.match(r"-?\d+$", string))
 
-    def get_recipient_email(self):
-        return self.env['ir.config_parameter'].get_param('licence_expiration_report.recipient_email') or ''
-
-    def get_sender_email(self):
-        return self.env['ir.config_parameter'].get_param('licence_expiration_report.sender_email') or ''
-
-    def get_cc_email(self):
-        return self.env['ir.config_parameter'].get_param('licence_expiration_report.cc_email') or ''
+    def get_config_param(self, key):
+        return self.env['ir.config_parameter'].get_param(key) or ''
 
     def get_time_checkpoints(self):
         time_string = self.env['ir.config_parameter'].get_param(
@@ -42,19 +36,16 @@ class LicenseExpirationReport(models.Model):
 
         return [int(time_str) for time_str in time_string_list if self.is_integer(time_str)]
 
-    def log(self, message, function_name):
-
-        # Create a log entry in ir.logging
+    def log_message(self, message, function_name):
         self.env['ir.logging'].create({
-            'name': 'Licence Expiration Report',  # Name of the log
-            'type': 'server',  # Indicates that this log is from the server-side
-            'dbname': self.env.cr.dbname,  # Current database name
-            'level': 'info',  # Log level (info, warning, error)
-            'message': message,  # The main log message
-            'path': 'models.account.move',  # Path indicates the module/class path
-            # Method name or line number
-            'line': 'LicenseExpirationReport.log',
-            'func': f'__{function_name}__',  # Function name
+            'name': 'Licence Expiration Report',
+            'type': 'server',
+            'dbname': self.env.cr.dbname,
+            'level': 'info',
+            'message': message,
+            'path': 'models.account.move',
+            'line': f'LicenseExpirationReport.{function_name}',
+            'func': f'__{function_name}__',
         })
 
     def get_sale_order_name(self, inv_line):
@@ -228,18 +219,29 @@ class LicenseExpirationReport(models.Model):
         binary_data = buffer.getvalue()
         return base64.b64encode(binary_data)
 
-    def get_email_body(self):
-        table_width = 600
+    def send_email_with_attachment(self, subject, body, attachment):
+        mail_mail = self.env['mail.mail'].create({
+            'email_to': self.get_config_param('licence_expiration_report.recipient_email'),
+            'email_from': self.get_config_param('licence_expiration_report.sender_email'),
+            'email_cc': self.get_config_param('licence_expiration_report.cc_email'),
+            'subject': subject,
+            'body_html': body,
+            'attachment_ids': [(0, 0, {'name': attachment[0], 'datas': attachment[1]})],
+        })
+        mail_mail.send()
+        self.log_message('Email sent', 'send_email_with_attachment')
 
-        email_content = {
+    def prepare_email_content(self):
+        return {
             'text_line_1': 'Hi,',
-            'text_line_2': f'Please find attached a {self.HEADER_TEXT}.',
+            'text_line_2': f'Please find attached the {self.HEADER_TEXT}.',
             'text_line_3': 'Kind regards,',
-            'text_line_4': 'JTRS Odoo',
-            'table_width': table_width
+            'text_line_4': self.get_config_param('licence_expiration_report.email_company_name'),
+            'table_width': 600
         }
 
-        email_html = f"""
+    def generate_email_html(self, email_content):
+        return f"""
         <!--?xml version="1.0"?-->
         <div style="background:#F0F0F0;color:#515166;padding:10px 0px;font-family:Arial,Helvetica,sans-serif;font-size:12px;">
             <table style="background-color:transparent;width:{email_content['table_width']}px;margin:5px auto;">
@@ -284,36 +286,21 @@ class LicenseExpirationReport(models.Model):
         """
         return email_html
 
-    def send_email(self, binary_data):
-
-        subject = f"{self.HEADER_TEXT} ({date.today().strftime('%d/%m/%y')})"
-        body = self.get_email_body()
-
-        # Using regular expression to replace '(', ')' and ' ' with '_'.
+    def create_email_attachment(self, binary_data, subject):
         attachment_name = re.sub(r'[() /]', '_', f"{subject}.xlsx")
-        attachments = [(attachment_name, binary_data)]
-
-        mail_mail = self.env['mail.mail'].create({
-            'email_to': self.get_recipient_email(),
-            'email_from': self.get_sender_email(),
-            'email_cc': self.get_cc_email(),
-            'subject': subject,
-            'body_html': body,
-            'attachment_ids': [(0, 0, {'name': attachment[0], 'datas': attachment[1]}) for attachment in attachments],
-        })
-        mail_mail.send()
-        self.log('Email was sent', 'send_email')
-        return True
+        return (attachment_name, binary_data)
 
     def send_licence_expiration_report(self):
 
-        data_dictionary = self.get_and_format_data()
+        data_dict = self.get_and_format_data()
 
-        if not data_dictionary:
-            _logger.warning('WARNING: data_dictionary was not created.')
+        if not data_dict:
+            _logger.warning('No data to report.')
             return
 
-        binary_data_report = self.generate_xlsx_file(data_dictionary)
+        binary_data = self.generate_xlsx_file(data_dict)
+        subject = f"{self.HEADER_TEXT} ({date.today().strftime('%d/%m/%y')})"
+        email_body = self.generate_email_html(self.prepare_email_content())
+        attachment = self.create_email_attachment(binary_data, subject)
 
-        self.send_email(binary_data_report)
-        return True
+        self.send_email_with_attachment(subject, email_body, attachment)
