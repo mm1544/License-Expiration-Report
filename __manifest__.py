@@ -12,6 +12,7 @@
         # Sequence: security, data, wizards, views
         'views/license_expiration_report.xml',
         'views/licence_length_months.xml',
+        'views/res_config_settings_views.xml',
     ],
     'demo': [],
     'qweb': [],

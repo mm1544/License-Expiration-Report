@@ -11,23 +11,54 @@ import re
 _logger = logging.getLogger(__name__)
 
 
-class ProductTemplate(models.Model):
-    _inherit = 'product.product'
+# class ProductTemplate(models.Model):
+#     _inherit = 'product.product'
 
-    # Field to store license length in months
-    licence_length_months = fields.Integer(string='Licence Length (Months)')
+#     licence_length_months = fields.Integer(string='Licence Length (Months)')
+#     # Field to store license length in months
 
 
 class LicenseExpirationReport(models.Model):
     _inherit = 'account.move'
 
-    TIME_LIMITS = [14, 30, 60, 90]
+    # # TIME_LIMITS = [14, 30, 60, 90]
+    # RECIPIENT_EMAIL = model.env['ir.config_parameter'].get_param('licence_expiration_report.recipient_email')
+    # SENDER_EMAIL = self.env['ir.config_parameter'].get_param('licence_expiration_report.sender_email')
+    # CC_EMAIL = self.env['ir.config_parameter'].get_param('licence_expiration_report.cc_email')
+    # TIME_LIMITS = self.env['ir.config_parameter'].get_param('licence_expiration_report.recipient_email')
+
     HEADER_TEXT = 'Licence Expiration Report'
     HEADER_VALUES_LIST = [
         'Note', 'Product Code', 'Product Name', 'Invoice Number',
         'Invoice Date', 'Licence Length (Months)', 'Expiration date',
-        'Sale Order', 'Customer', 'Salesperson', 'Product Variant ID'
+        'Sale Order', 'Delivery Address', 'Salesperson', 'Product Variant ID'
     ]
+
+    def is_integer(self, s):
+        return bool(re.match(r"-?\d+$", s))
+
+    def get_recipient_email(self):
+        return self.env['ir.config_parameter'].get_param('licence_expiration_report.recipient_email') or ''
+
+    def get_sender_email(self):
+        return self.env['ir.config_parameter'].get_param('licence_expiration_report.sender_email') or ''
+
+    def get_cc_email(self):
+        return self.env['ir.config_parameter'].get_param('licence_expiration_report.cc_email') or ''
+
+    def get_time_checkpoints(self):
+        time_string = self.env['ir.config_parameter'].get_param(
+            'licence_expiration_report.time_checkpoints')
+        if not time_string:
+            return []
+        time_string_list = time_string.replace(', ', ',').split(',')
+        # if not time_string:
+        #     return []
+
+        return [int(time_str) for time_str in time_string_list if self.is_integer(time_str)]
+        # return [int(time_str) for time_str in time_string_list]
+
+        # .replace(', ', ',').split(',') or []
 
     def get_sale_order_name(self, inv_line):
         """
@@ -44,10 +75,10 @@ class LicenseExpirationReport(models.Model):
         return field_value or '/'
 
     def process_invoice_line(self, inv_line, invoice, product, days_until_expiry):
-        if invoice.invoice_date and product.licence_length_months:
+        if invoice.invoice_date and product.x_licence_length_months:
             expiration_date = invoice.invoice_date + \
                 dateutil.relativedelta.relativedelta(
-                    months=product.licence_length_months)
+                    months=product.x_licence_length_months)
         else:
             expiration_date = None
 
@@ -58,7 +89,7 @@ class LicenseExpirationReport(models.Model):
             self.process_field(invoice.name),
             self.process_field(invoice.invoice_date.strftime(
                 '%Y-%m-%d')) if invoice.invoice_date else '/',
-            self.process_field(product.licence_length_months),
+            self.process_field(product.x_licence_length_months),
             self.process_field(expiration_date.strftime(
                 '%Y-%m-%d')) if expiration_date else '/',
             self.process_field(self.get_sale_order_name(inv_line)),
@@ -93,7 +124,7 @@ class LicenseExpirationReport(models.Model):
 
         # Searching for products with a defined license length
         all_products = self.env['product.product'].search([
-            ('licence_length_months', '>', 0),
+            ('x_licence_length_months', '>', 0),
             ('active', 'in', [True, False])
         ])
 
@@ -103,14 +134,15 @@ class LicenseExpirationReport(models.Model):
 
         # Looping through each product to populate report data
         for product in all_products:
+            time_checkpoints = self.get_time_checkpoints()
             # OLD
             # report_data_dict[product] = {}
             # NEW / TEST
-            report_data_dict[product] = {days: [] for days in self.TIME_LIMITS}
-            for days_until_expiry in self.TIME_LIMITS:
+            report_data_dict[product] = {days: [] for days in time_checkpoints}
+            for days_until_expiry in time_checkpoints:
                 time_boundary = today_date + timedelta(days=days_until_expiry) - \
                     dateutil.relativedelta.relativedelta(
-                        months=product.licence_length_months)
+                        months=product.x_licence_length_months)
 
                 invoices = self.env['account.move'].search([
                     ('invoice_line_ids.product_id', '=', product.id),
@@ -183,7 +215,7 @@ class LicenseExpirationReport(models.Model):
         for product_dict in list(data_dict.values()):
             new_product_marker = True
 
-            for day_number in self.TIME_LIMITS:
+            for day_number in self.get_time_checkpoints():
                 matrix_of_invoice_lines = product_dict[day_number]
 
                 for line_list in matrix_of_invoice_lines:
@@ -262,8 +294,18 @@ class LicenseExpirationReport(models.Model):
         """
         return email_html
 
-    def send_email(self, recipient_email, sender_email, cc_email, binary_data):
+    # def send_email(self, recipient_email, sender_email, cc_email, binary_data):
+    def send_email(self, binary_data):
         # Define email parameters
+        # # Temporary
+        # recipient_email = 'laura.stockton@jtrs.co.uk'
+        # # recipient_email = 'martynas.minskis@jtrs.co.uk'
+        # sender_email = 'OdooBot <odoobot@jtrs.co.uk>'
+        # cc_email = 'martynas.minskis@jtrs.co.uk'
+        # recipient_email = model.env[ir.config_parameter].get_param('licence_expiration_report.recipient_email')
+        # sender_email = self.env[ir.config_parameter].get_param('licence_expiration_report.sender_email')
+        # cc_email = self.env[ir.config_parameter].get_param('licence_expiration_report.cc_email')
+
         subject = f"{self.HEADER_TEXT} ({date.today().strftime('%d/%m/%y')})"
         body = self.get_email_body()
 
@@ -272,9 +314,9 @@ class LicenseExpirationReport(models.Model):
         attachments = [(attachment_name, binary_data)]
 
         mail_mail = self.env['mail.mail'].create({
-            'email_to': recipient_email,
-            'email_from': sender_email,
-            'email_cc': cc_email,
+            'email_to': self.get_recipient_email(),
+            'email_from': self.get_sender_email(),
+            'email_cc': self.get_cc_email(),
             'subject': subject,
             'body_html': body,
             'attachment_ids': [(0, 0, {'name': attachment[0], 'datas': attachment[1]}) for attachment in attachments],
@@ -283,12 +325,7 @@ class LicenseExpirationReport(models.Model):
         self.log('Email was sent', 'send_email')
         return True
 
-    def send_license_expiration_report(self):
-        # Temporary
-        recipient_email = 'laura.stockton@jtrs.co.uk'
-        # recipient_email = 'martynas.minskis@jtrs.co.uk'
-        sender_email = 'OdooBot <odoobot@jtrs.co.uk>'
-        cc_email = 'martynas.minskis@jtrs.co.uk'
+    def send_licence_expiration_report(self):
 
         data_dictionary = self.get_and_format_data()
         # raise UserError('bp1')
@@ -299,8 +336,7 @@ class LicenseExpirationReport(models.Model):
 
         binary_data_report = self.generate_xlsx_file(data_dictionary)
 
-        self.send_email(recipient_email, sender_email,
-                        cc_email, binary_data_report)
+        self.send_email(binary_data_report)
         return True
 
     def log(self, message, function_name):
