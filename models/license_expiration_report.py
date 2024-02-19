@@ -11,21 +11,8 @@ import re
 _logger = logging.getLogger(__name__)
 
 
-# class ProductTemplate(models.Model):
-#     _inherit = 'product.product'
-
-#     licence_length_months = fields.Integer(string='Licence Length (Months)')
-#     # Field to store license length in months
-
-
 class LicenseExpirationReport(models.Model):
     _inherit = 'account.move'
-
-    # # TIME_LIMITS = [14, 30, 60, 90]
-    # RECIPIENT_EMAIL = model.env['ir.config_parameter'].get_param('licence_expiration_report.recipient_email')
-    # SENDER_EMAIL = self.env['ir.config_parameter'].get_param('licence_expiration_report.sender_email')
-    # CC_EMAIL = self.env['ir.config_parameter'].get_param('licence_expiration_report.cc_email')
-    # TIME_LIMITS = self.env['ir.config_parameter'].get_param('licence_expiration_report.recipient_email')
 
     HEADER_TEXT = 'Licence Expiration Report'
     HEADER_VALUES_LIST = [
@@ -52,13 +39,23 @@ class LicenseExpirationReport(models.Model):
         if not time_string:
             return []
         time_string_list = time_string.replace(', ', ',').split(',')
-        # if not time_string:
-        #     return []
 
         return [int(time_str) for time_str in time_string_list if self.is_integer(time_str)]
-        # return [int(time_str) for time_str in time_string_list]
 
-        # .replace(', ', ',').split(',') or []
+    def log(self, message, function_name):
+
+        # Create a log entry in ir.logging
+        self.env['ir.logging'].create({
+            'name': 'Licence Expiration Report',  # Name of the log
+            'type': 'server',  # Indicates that this log is from the server-side
+            'dbname': self.env.cr.dbname,  # Current database name
+            'level': 'info',  # Log level (info, warning, error)
+            'message': message,  # The main log message
+            'path': 'models.account.move',  # Path indicates the module/class path
+            # Method name or line number
+            'line': 'LicenseExpirationReport.log',
+            'func': f'__{function_name}__',  # Function name
+        })
 
     def get_sale_order_name(self, inv_line):
         """
@@ -135,9 +132,7 @@ class LicenseExpirationReport(models.Model):
         # Looping through each product to populate report data
         for product in all_products:
             time_checkpoints = self.get_time_checkpoints()
-            # OLD
-            # report_data_dict[product] = {}
-            # NEW / TEST
+
             report_data_dict[product] = {days: [] for days in time_checkpoints}
             for days_until_expiry in time_checkpoints:
                 time_boundary = today_date + timedelta(days=days_until_expiry) - \
@@ -180,8 +175,6 @@ class LicenseExpirationReport(models.Model):
 
     def generate_xlsx_file(self, data_dict):
 
-        # header_values_list = ['Note', 'Product Code', 'Product Name', 'Invoice Number', 'Expiration date', 'Invoice Date', 'Licence Length (Months)']
-
         # Create a new workbook using XlsxWriter
         buffer = io.BytesIO()
         workbook = xlsxwriter.Workbook(buffer, {'in_memory': True})
@@ -208,7 +201,6 @@ class LicenseExpirationReport(models.Model):
             # Set the column width
             worksheet.set_column(col_num, col_num, column_width)
 
-            # format_to_use = bold_format if row_num == 0 else None
             worksheet.write(0, col_num, header, bold_format)
 
         row_num = 1
@@ -276,7 +268,6 @@ class LicenseExpirationReport(models.Model):
                     </tr>
                     <tr>
                         <td style="padding:15px 20px 10px 20px;">
-                            <!--% include_table %-->
                         </td>
                     </tr>
                 </tbody>
@@ -285,7 +276,6 @@ class LicenseExpirationReport(models.Model):
                 <tbody>
                     <tr>
                         <td style="padding-top:10px;color:#afafaf;">
-                            <!-- Additional content can go here -->
                         </td>
                     </tr>
                 </tbody>
@@ -294,17 +284,7 @@ class LicenseExpirationReport(models.Model):
         """
         return email_html
 
-    # def send_email(self, recipient_email, sender_email, cc_email, binary_data):
     def send_email(self, binary_data):
-        # Define email parameters
-        # # Temporary
-        # recipient_email = 'laura.stockton@jtrs.co.uk'
-        # # recipient_email = 'martynas.minskis@jtrs.co.uk'
-        # sender_email = 'OdooBot <odoobot@jtrs.co.uk>'
-        # cc_email = 'martynas.minskis@jtrs.co.uk'
-        # recipient_email = model.env[ir.config_parameter].get_param('licence_expiration_report.recipient_email')
-        # sender_email = self.env[ir.config_parameter].get_param('licence_expiration_report.sender_email')
-        # cc_email = self.env[ir.config_parameter].get_param('licence_expiration_report.cc_email')
 
         subject = f"{self.HEADER_TEXT} ({date.today().strftime('%d/%m/%y')})"
         body = self.get_email_body()
@@ -328,7 +308,6 @@ class LicenseExpirationReport(models.Model):
     def send_licence_expiration_report(self):
 
         data_dictionary = self.get_and_format_data()
-        # raise UserError('bp1')
 
         if not data_dictionary:
             _logger.warning('WARNING: data_dictionary was not created.')
@@ -338,18 +317,3 @@ class LicenseExpirationReport(models.Model):
 
         self.send_email(binary_data_report)
         return True
-
-    def log(self, message, function_name):
-
-        # Create a log entry in ir.logging
-        self.env['ir.logging'].create({
-            'name': 'Licence Expiration Report',  # Name of the log
-            'type': 'server',  # Indicates that this log is from the server-side
-            'dbname': self.env.cr.dbname,  # Current database name
-            'level': 'info',  # Log level (info, warning, error)
-            'message': message,  # The main log message
-            'path': 'models.account.move',  # Path indicates the module/class path
-            # Method name or line number
-            'line': 'LicenseExpirationReport.log',
-            'func': f'__{function_name}__',  # Function name
-        })

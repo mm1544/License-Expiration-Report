@@ -3,19 +3,11 @@
     <record id="licence_expiration_report_config_settings_view_form" model="ir.ui.view">
       <field name="name">res.config.settings.view.licence_expiration_report</field>
       <field name="model">res.config.settings</field>
-      <!-- <field name="inherit_id" ref="base.res_config_settings_view_form"/> -->
       <field name="inherit_id" ref="stock.res_config_settings_view_form"/>
       <field name="arch" type="xml">
-        <!-- div.settings > div:nth-child(9) > h2:nth-child(2) -->
-        <!-- <xpath expr="//div[hasclass('settings')]/div[9]/h2[2]" position="before"> -->
         <xpath expr="//div[@data-string='Inventory']" position="inside">
-          <!-- <xpath expr="//div[@data-string='Inventory']" position="first"> -->
-
-          <!-- <div class="app_settings_block" data-string="Licence Expiration Report" id="licence_expiration_report" string="Licence Expiration Report" data-key="stock.picking.type"> -->
           <div id="licence_expiration_report">
-            <!-- <div class="app_settings_block" id="licence_expiration_report"> -->
             <h2>Licence Expiration Report Settings</h2>
-
             <div class="row mt16 o_settings_container" id="licence_expiration_report_settings">
               <div class="col-12 col-lg-6 o_setting_box">
                 <div class="o_setting_right_pane">
@@ -71,10 +63,8 @@
                 </div>
               </div>
             </div>
-
           </div>
         </xpath>
-        <!-- </div> -->
       </field>
     </record>
 
@@ -84,7 +74,7 @@
       <field name="res_model">res.config.settings</field>
       <field name="view_mode">form</field>
       <field name="target">inline</field>
-      <!-- might need to change context module -->
+      <!-- might need to change context > module -->
       <field name="context">{'module': 'stock.picking.type', 'bin_size': False}</field>
     </record>
 
