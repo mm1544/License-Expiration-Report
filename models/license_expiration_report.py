@@ -189,20 +189,13 @@ class LicenseExpirationReport(models.Model):
 
     def generate_xlsx_file(self, data_dict):
 
-        # raise UserError(f'data_dict:\n{data_dict}')
-
         # Create a new workbook using XlsxWriter
         buffer = io.BytesIO()
         workbook = xlsxwriter.Workbook(buffer, {'in_memory': True})
 
         # Defining a bold format for the header
         bold_format = workbook.add_format({'bold': True})
-        # Define the top border format
-        top_border_format = workbook.add_format({'top': 1})
-        # Combined format
-        red_with_top_border_format = workbook.add_format(
-            {'bg_color': 'red', 'top': 1})
-        # raise UserError(f'top_border_format:\n{top_border_format}')
+
         worksheet = workbook.add_worksheet()
 
         # Seting the width of the columns
@@ -224,7 +217,6 @@ class LicenseExpirationReport(models.Model):
 
         row_num = 1
         for product_dict in list(data_dict.values()):
-            # raise UserError(f'product_dict:\n{product_dict}')
             new_product_marker = True
 
             for day_number in self.get_time_checkpoints():
@@ -234,18 +226,6 @@ class LicenseExpirationReport(models.Model):
 
                     for col_num, cell_value in enumerate(line_list):
 
-                        # # format_to_use = top_border_format if new_product_marker else None
-                        # format_dict = {}
-                        # if day_number < 0 and col_num == 0:
-                        #     # format_dict['bg_color'] = 'red'
-                        #     format_dict['bg_color'] = '#c47772'
-                        # if day_number > 0 and col_num == 0:
-                        #     # format_dict['bg_color'] = 'green'
-                        #     format_dict['bg_color'] = '#5d917e'
-                        # if new_product_marker:
-                        #     format_dict['top'] = 1
-
-                        # format_dict = self.apply_cell_formating(col_num, day_number, new_product_marker)
                         format_to_use = workbook.add_format(
                             self.apply_cell_formating(col_num, day_number, new_product_marker))
 
