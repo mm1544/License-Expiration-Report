@@ -12,4 +12,15 @@
       </xpath>
     </field>
   </record>
+
+  <!-- <record id="view_omit_from_licence_expiration_report" model="ir.ui.view">
+        <field name="name">sale.order.form.licence_expiration_report.jtrs</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='source_id']" position="after">
+                <field name="x_omit_from_licence_expiration_report" widget="boolean_toggle"/>
+            </xpath>
+        </field>
+    </record> -->
 </odoo>

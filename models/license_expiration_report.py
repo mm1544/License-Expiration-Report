@@ -62,6 +62,17 @@ class LicenseExpirationReport(models.Model):
         """
         return field_value or '/'
 
+    def get_note_text(self, days_until_expiration):
+        if not days_until_expiration:
+            return '/'
+        if days_until_expiration > 0:
+            return f'{days_until_expiration} days until expiration'
+        elif days_until_expiration < 0:
+            days_until_expiration *= -1
+            return f'Expired {days_until_expiration} days ago'
+        else:
+            return 'Expires today'
+
     def process_invoice_line(self, inv_line, invoice, product, days_until_expiry):
         if invoice.invoice_date and product.x_licence_length_months:
             expiration_date = invoice.invoice_date + \
@@ -71,7 +82,7 @@ class LicenseExpirationReport(models.Model):
             expiration_date = None
 
         return [
-            f'{days_until_expiry} days until expiration' if days_until_expiry else '/',
+            self.get_note_text(days_until_expiry),
             self.process_field(inv_line.product_id.default_code),
             self.process_field(inv_line.product_id.name),
             self.process_field(invoice.name),
@@ -164,7 +175,21 @@ class LicenseExpirationReport(models.Model):
 
         return report_data_dict
 
+    def apply_cell_formating(self, col_num, day_number, new_product_marker):
+        format_dict = {}
+        if day_number < 0 and col_num == 0:
+            # format_dict['bg_color'] = 'red'
+            format_dict['bg_color'] = '#c47772'
+        if day_number > 0 and col_num == 0:
+            # format_dict['bg_color'] = 'green'
+            format_dict['bg_color'] = '#5d917e'
+        if new_product_marker:
+            format_dict['top'] = 1
+        return format_dict
+
     def generate_xlsx_file(self, data_dict):
+
+        # raise UserError(f'data_dict:\n{data_dict}')
 
         # Create a new workbook using XlsxWriter
         buffer = io.BytesIO()
@@ -174,7 +199,10 @@ class LicenseExpirationReport(models.Model):
         bold_format = workbook.add_format({'bold': True})
         # Define the top border format
         top_border_format = workbook.add_format({'top': 1})
-
+        # Combined format
+        red_with_top_border_format = workbook.add_format(
+            {'bg_color': 'red', 'top': 1})
+        # raise UserError(f'top_border_format:\n{top_border_format}')
         worksheet = workbook.add_worksheet()
 
         # Seting the width of the columns
@@ -196,6 +224,7 @@ class LicenseExpirationReport(models.Model):
 
         row_num = 1
         for product_dict in list(data_dict.values()):
+            # raise UserError(f'product_dict:\n{product_dict}')
             new_product_marker = True
 
             for day_number in self.get_time_checkpoints():
@@ -205,7 +234,21 @@ class LicenseExpirationReport(models.Model):
 
                     for col_num, cell_value in enumerate(line_list):
 
-                        format_to_use = top_border_format if new_product_marker else None
+                        # # format_to_use = top_border_format if new_product_marker else None
+                        # format_dict = {}
+                        # if day_number < 0 and col_num == 0:
+                        #     # format_dict['bg_color'] = 'red'
+                        #     format_dict['bg_color'] = '#c47772'
+                        # if day_number > 0 and col_num == 0:
+                        #     # format_dict['bg_color'] = 'green'
+                        #     format_dict['bg_color'] = '#5d917e'
+                        # if new_product_marker:
+                        #     format_dict['top'] = 1
+
+                        # format_dict = self.apply_cell_formating(col_num, day_number, new_product_marker)
+                        format_to_use = workbook.add_format(
+                            self.apply_cell_formating(col_num, day_number, new_product_marker))
+
                         worksheet.write(row_num, col_num,
                                         cell_value, format_to_use)
 
