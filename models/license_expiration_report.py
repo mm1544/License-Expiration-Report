@@ -25,16 +25,24 @@ class LicenseExpirationReport(models.Model):
         return bool(re.match(r"-?\d+$", string))
 
     def get_config_param(self, key):
-        return self.env['ir.config_parameter'].get_param(key) or ''
+        try:
+            return self.env['ir.config_parameter'].get_param(key) or ''
+        except Exception as e:
+            _logger.error(f"Error getting configuration parameter {key}: {e}")
+            return ''
 
     def get_time_checkpoints(self):
-        time_string = self.env['ir.config_parameter'].get_param(
-            'licence_expiration_report.time_checkpoints')
-        if not time_string:
-            return []
-        time_string_list = time_string.replace(', ', ',').split(',')
+        try:
+            time_string = self.env['ir.config_parameter'].get_param(
+                'licence_expiration_report.time_checkpoints')
+            if not time_string:
+                return []
+            time_string_list = time_string.replace(', ', ',').split(',')
 
-        return [int(time_str) for time_str in time_string_list if self.is_integer(time_str)]
+            return [int(time_str) for time_str in time_string_list if self.is_integer(time_str)]
+        except Exception as e:
+            _logger.error(f"Error in retrieving time checkpoints: {e}")
+            return []
 
     def log_message(self, message, function_name):
         self.env['ir.logging'].create({
@@ -119,62 +127,67 @@ class LicenseExpirationReport(models.Model):
         Generates a dictionary with report data structured as:
         {product: {days_until_expiry: [[invoice_line_data], ...]}, ...}
         """
-        today_date = date.today()
-        report_data_dict = {}
+        try:
+            today_date = date.today()
+            report_data_dict = {}
 
-        # Searching for products with a defined license length
-        all_products = self.env['product.product'].search([
-            ('x_licence_length_months', '>', 0),
-            ('active', 'in', [True, False])
-        ])
+            # Searching for products with a defined license length
+            all_products = self.env['product.product'].search([
+                ('x_licence_length_months', '>', 0),
+                ('active', 'in', [True, False])
+            ])
 
-        if not all_products:
-            _logger.warning('WARNING: No products found')
-            return {}
+            if not all_products:
+                _logger.warning('WARNING: No products found')
+                return {}
 
-        # Looping through each product to populate report data
-        for product in all_products:
-            time_checkpoints = self.get_time_checkpoints()
+            # Looping through each product to populate report data
+            for product in all_products:
+                time_checkpoints = self.get_time_checkpoints()
 
-            report_data_dict[product] = {days: [] for days in time_checkpoints}
-            for days_until_expiry in time_checkpoints:
-                time_boundary = today_date + timedelta(days=days_until_expiry) - \
-                    dateutil.relativedelta.relativedelta(
-                        months=product.x_licence_length_months)
+                report_data_dict[product] = {days: []
+                                             for days in time_checkpoints}
+                for days_until_expiry in time_checkpoints:
+                    time_boundary = today_date + timedelta(days=days_until_expiry) - \
+                        dateutil.relativedelta.relativedelta(
+                            months=product.x_licence_length_months)
 
-                invoices = self.env['account.move'].search([
-                    ('invoice_line_ids.product_id', '=', product.id),
-                    ('invoice_date', '=', time_boundary),
-                    ('state', 'in', ['posted']),
-                    ('move_type', '=', 'out_invoice'),
-                ])
+                    invoices = self.env['account.move'].search([
+                        ('invoice_line_ids.product_id', '=', product.id),
+                        ('invoice_date', '=', time_boundary),
+                        ('state', 'in', ['posted']),
+                        ('move_type', '=', 'out_invoice'),
+                    ])
 
-                if not invoices:
-                    report_data_dict[product][days_until_expiry] = []
-                    continue
-
-                inv_lines_data_list = []
-                for invoice in invoices:
-                    inv_lines = [
-                        line for line in invoice.invoice_line_ids if line.product_id.id == product.id]
-
-                    if not inv_lines:
-                        _logger.warning('WARNING: No INV lines found')
+                    if not invoices:
+                        report_data_dict[product][days_until_expiry] = []
                         continue
 
-                    for inv_line in inv_lines:
-                        line_data = self.process_invoice_line(
-                            inv_line, invoice, product, days_until_expiry)
+                    inv_lines_data_list = []
+                    for invoice in invoices:
+                        inv_lines = [
+                            line for line in invoice.invoice_line_ids if line.product_id.id == product.id]
 
-                        inv_lines_data_list.append(line_data)
+                        if not inv_lines:
+                            _logger.warning('WARNING: No INV lines found')
+                            continue
 
-                    report_data_dict[product][days_until_expiry] = inv_lines_data_list
+                        for inv_line in inv_lines:
+                            line_data = self.process_invoice_line(
+                                inv_line, invoice, product, days_until_expiry)
 
-        if not self.check_if_any_data_found(report_data_dict):
-            self.log('No data found', 'get_and_format_data')
+                            inv_lines_data_list.append(line_data)
+
+                        report_data_dict[product][days_until_expiry] = inv_lines_data_list
+
+            if not self.check_if_any_data_found(report_data_dict):
+                self.log('No data found', 'get_and_format_data')
+                return {}
+
+            return report_data_dict
+        except Exception as e:
+            _logger.error(f"Error in formatting data: {e}")
             return {}
-
-        return report_data_dict
 
     def apply_cell_formating(self, col_num, day_number, new_product_marker):
         format_dict = {}
@@ -189,71 +202,79 @@ class LicenseExpirationReport(models.Model):
         return format_dict
 
     def generate_xlsx_file(self, data_dict):
+        try:
+            # Create a new workbook using XlsxWriter
+            buffer = io.BytesIO()
+            workbook = xlsxwriter.Workbook(buffer, {'in_memory': True})
 
-        # Create a new workbook using XlsxWriter
-        buffer = io.BytesIO()
-        workbook = xlsxwriter.Workbook(buffer, {'in_memory': True})
+            # Defining a bold format for the header
+            bold_format = workbook.add_format({'bold': True})
 
-        # Defining a bold format for the header
-        bold_format = workbook.add_format({'bold': True})
+            worksheet = workbook.add_worksheet()
 
-        worksheet = workbook.add_worksheet()
+            # Seting the width of the columns
+            # Headers are in the first row of data_matrix and their length determines the column width
+            for col_num, header in enumerate(self.HEADER_VALUES_LIST):
+                if col_num in [0]:
+                    column_width = len(header) + 20
+                elif col_num in [9]:
+                    column_width = len(header) + 10
+                elif col_num in [2, 8]:
+                    column_width = len(header) + 30
+                else:
+                    column_width = len(header)
 
-        # Seting the width of the columns
-        # Headers are in the first row of data_matrix and their length determines the column width
-        for col_num, header in enumerate(self.HEADER_VALUES_LIST):
-            if col_num in [0]:
-                column_width = len(header) + 20
-            elif col_num in [9]:
-                column_width = len(header) + 10
-            elif col_num in [2, 8]:
-                column_width = len(header) + 30
-            else:
-                column_width = len(header)
+                # Set the column width
+                worksheet.set_column(col_num, col_num, column_width)
 
-            # Set the column width
-            worksheet.set_column(col_num, col_num, column_width)
+                worksheet.write(0, col_num, header, bold_format)
 
-            worksheet.write(0, col_num, header, bold_format)
+            row_num = 1
+            for product_dict in list(data_dict.values()):
+                new_product_marker = True
 
-        row_num = 1
-        for product_dict in list(data_dict.values()):
-            new_product_marker = True
+                for day_number in self.get_time_checkpoints():
+                    matrix_of_invoice_lines = product_dict[day_number]
 
-            for day_number in self.get_time_checkpoints():
-                matrix_of_invoice_lines = product_dict[day_number]
+                    for line_list in matrix_of_invoice_lines:
 
-                for line_list in matrix_of_invoice_lines:
+                        for col_num, cell_value in enumerate(line_list):
 
-                    for col_num, cell_value in enumerate(line_list):
+                            format_to_use = workbook.add_format(
+                                self.apply_cell_formating(col_num, day_number, new_product_marker))
 
-                        format_to_use = workbook.add_format(
-                            self.apply_cell_formating(col_num, day_number, new_product_marker))
+                            worksheet.write(row_num, col_num,
+                                            cell_value, format_to_use)
 
-                        worksheet.write(row_num, col_num,
-                                        cell_value, format_to_use)
+                        row_num += 1
+                        new_product_marker = False
 
-                    row_num += 1
-                    new_product_marker = False
+            # Close the workbook to save changes
+            workbook.close()
 
-        # Close the workbook to save changes
-        workbook.close()
+            # Get the binary data from the BytesIO buffer
+            binary_data = buffer.getvalue()
+            return base64.b64encode(binary_data)
 
-        # Get the binary data from the BytesIO buffer
-        binary_data = buffer.getvalue()
-        return base64.b64encode(binary_data)
+        except Exception as e:
+            _logger.error(f"Error in generating XLSX file: {e}")
+            return None
 
     def send_email_with_attachment(self, subject, body, attachment):
-        mail_mail = self.env['mail.mail'].create({
-            'email_to': self.get_config_param('licence_expiration_report.recipient_email'),
-            'email_from': self.get_config_param('licence_expiration_report.sender_email'),
-            'email_cc': self.get_config_param('licence_expiration_report.cc_email'),
-            'subject': subject,
-            'body_html': body,
-            'attachment_ids': [(0, 0, {'name': attachment[0], 'datas': attachment[1]})],
-        })
-        mail_mail.send()
-        self.log_message('Email sent', 'send_email_with_attachment')
+        try:
+            mail_mail = self.env['mail.mail'].create({
+                'email_to': self.get_config_param('licence_expiration_report.recipient_email'),
+                'email_from': self.get_config_param('licence_expiration_report.sender_email'),
+                'email_cc': self.get_config_param('licence_expiration_report.cc_email'),
+                'subject': subject,
+                'body_html': body,
+                'attachment_ids': [(0, 0, {'name': attachment[0], 'datas': attachment[1]})],
+            })
+            mail_mail.send()
+            self.log_message('Email sent', 'send_email_with_attachment')
+
+        except Exception as e:
+            _logger.error(f"Error in sending email: {e}")
 
     def prepare_email_content(self):
         return {
