@@ -63,7 +63,7 @@ class LicenseExpirationReport(models.Model):
         return field_value or '/'
 
     def get_note_text(self, days_until_expiration):
-        if not days_until_expiration:
+        if days_until_expiration == None:
             return '/'
         if days_until_expiration > 0:
             return f'{days_until_expiration} days until expiration'
@@ -92,7 +92,8 @@ class LicenseExpirationReport(models.Model):
             self.process_field(expiration_date.strftime(
                 '%Y-%m-%d')) if expiration_date else '/',
             self.process_field(self.get_sale_order_name(inv_line)),
-            self.process_field(invoice.partner_id.display_name),
+            # self.process_field(invoice.partner_id.display_name),
+            self.process_field(invoice.partner_shipping_id.display_name),
             self.process_field(invoice.invoice_user_id.name),
             self.process_field(inv_line.product_id.id),
         ]
