@@ -184,6 +184,7 @@ class LicenseExpirationReport(models.Model):
                 self.log('No data found', 'get_and_format_data')
                 return {}
 
+            # raise UserError(f'report_data_dict:\n{report_data_dict}')
             return report_data_dict
         except Exception as e:
             _logger.error(f"Error in formatting data: {e}")
@@ -194,9 +195,10 @@ class LicenseExpirationReport(models.Model):
         if day_number < 0 and col_num == 0:
             # format_dict['bg_color'] = 'red'
             format_dict['bg_color'] = '#c47772'
-        if day_number > 0 and col_num == 0:
+        if day_number >= 0 and day_number < 30 and col_num == 0:
             # format_dict['bg_color'] = 'green'
-            format_dict['bg_color'] = '#5d917e'
+            # format_dict['bg_color'] = '#5d917e'
+            format_dict['bg_color'] = '#FFBF00'
         if new_product_marker:
             format_dict['top'] = 1
         return format_dict
@@ -230,6 +232,8 @@ class LicenseExpirationReport(models.Model):
                 worksheet.write(0, col_num, header, bold_format)
 
             row_num = 1
+            # raise UserError(f'list(data_dict.values()):\n{list(data_dict.values())}')
+
             for product_dict in list(data_dict.values()):
                 new_product_marker = True
 
