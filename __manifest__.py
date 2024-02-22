@@ -13,6 +13,7 @@
         'views/license_expiration_report.xml',
         'views/licence_length_months.xml',
         'views/res_config_settings_views.xml',
+        'views/sale_order_line.xml',
     ],
     'demo': [],
     'qweb': [],

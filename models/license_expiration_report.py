@@ -122,6 +122,16 @@ class LicenseExpirationReport(models.Model):
                     return True
         return False
 
+    def switch_on_so_line_is_on(self, inv_line):
+        # Check if the invoice line has associated sale line ids
+        if not inv_line.sale_line_ids:
+            _logger.warning('WARNING: No inv_line.sale_line_ids')
+            return False
+
+        # Return True if any of the sale lines are marked to omit from license expiration report
+        # This checks each sale line's custom field 'x_omit_from_licence_expiration_report'
+        return any(so_line.x_omit_from_licence_expiration_report for so_line in inv_line.sale_line_ids)
+
     def get_and_format_data(self):
         """
         Generates a dictionary with report data structured as:
@@ -173,6 +183,10 @@ class LicenseExpirationReport(models.Model):
                             continue
 
                         for inv_line in inv_lines:
+                            if self.switch_on_so_line_is_on(inv_line):
+                                _logger.warning(
+                                    f'WARNING: SO Line #{inv_line.id} is omitted because the switch button is on.')
+                                continue
                             line_data = self.process_invoice_line(
                                 inv_line, invoice, product, days_until_expiry)
 

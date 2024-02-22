@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <!-- Inheriting existing form view and adding fields. -->
+  <record id="view_licence_length_switch" model="ir.ui.view">
+    <field name="name">sale.order.form.inherited.jtrs</field>
+    <field name="model">sale.order</field>
+    <!--inherit_id: External ID of inherited view. -->
+    <field name="inherit_id" ref="sale.view_order_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//form[1]/sheet[1]/notebook[1]/page[@name='order_lines']/field[@name='order_line']/form[1]/group[1]/group[2]/field[@name='analytic_tag_ids']" position="after">
+        <field name="x_omit_from_licence_expiration_report" widget="boolean_toggle"/>
+      </xpath>
+
+      <!-- <xpath expr="//notebook/field[@name='analytic_tag_ids']" position="after">
+        <field name="x_omit_from_licence_expiration_report" widget="boolean_toggle"/>
+      </xpath> -->
+    </field>
+  </record>
+</odoo>
