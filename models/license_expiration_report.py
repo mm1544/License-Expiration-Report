@@ -1,6 +1,6 @@
 from odoo.exceptions import UserError
 from odoo import models, fields
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 import dateutil.relativedelta
 import xlsxwriter
 import io
@@ -20,6 +20,37 @@ class LicenseExpirationReport(models.Model):
         'Invoice Date', 'Licence Length (Months)', 'Expiration date',
         'Sale Order', 'Delivery Address', 'Salesperson', 'Product Variant ID'
     ]
+
+    def create_scheduled_activity(self, inv_line, info_str, days_until_expiration):
+        activity_summary = f'Licence Expiration (#{inv_line.id})'
+        sale_order_model_id = 280
+        date_deadline = datetime.now() + timedelta(days=days_until_expiration)
+        if not inv_line.sale_line_ids:
+            _logger.error(f"No sale_line_ids on inv_line #{inv_line.id}")
+        if not inv_line.sale_line_ids[0].order_id:
+            _logger.error(f"No SO associated with inv_line #{inv_line.id}")
+
+        sale_order = inv_line.sale_line_ids[0].order_id
+
+        existing_activity = self.env['mail.activity'].search([
+            ('res_model_id', '=', sale_order_model_id),
+            ('res_id', '=', sale_order.id),
+            ('date_deadline', '=', date_deadline),
+            ('summary', '=', activity_summary)])
+
+        if existing_activity:
+            return
+
+        self.env['mail.activity'].create({
+            'date_deadline': date_deadline,
+            'res_id': sale_order.id,
+            # 'sale.order' ir.model #280
+            'res_model_id': 280,
+            'user_id': sale_order.user_id.id,
+            'note': f'Note: {info_str}. \n\nProduct: {inv_line.product_id.display_name}.',
+            'display_name': f'{inv_line.id}',
+            'summary': activity_summary,
+        })
 
     def is_integer(self, string):
         return bool(re.match(r"-?\d+$", string))
@@ -192,6 +223,9 @@ class LicenseExpirationReport(models.Model):
 
                             inv_lines_data_list.append(line_data)
 
+                            self.create_scheduled_activity(
+                                inv_line, line_data[0], days_until_expiry)
+
                         report_data_dict[product][days_until_expiry] = inv_lines_data_list
 
             if not self.check_if_any_data_found(report_data_dict):
@@ -254,6 +288,7 @@ class LicenseExpirationReport(models.Model):
                 for day_number in self.get_time_checkpoints():
                     matrix_of_invoice_lines = product_dict[day_number]
 
+                    # Example of line_list: ['Expires today', 'LBX-V3-ONB20UKB', 'LoxBox 20 Cart - (Black/Orange) for Tablets & Notebooks - UK Power', 'INV/2023/0736', '2023-02-23', 12, '2024-02-23', 'SO55291', '### School, Julie Chandler', 'M### M###', 13969]
                     for line_list in matrix_of_invoice_lines:
 
                         for col_num, cell_value in enumerate(line_list):
@@ -355,7 +390,6 @@ class LicenseExpirationReport(models.Model):
         return (attachment_name, binary_data)
 
     def send_licence_expiration_report(self):
-
         data_dict = self.get_and_format_data()
 
         if not data_dict:

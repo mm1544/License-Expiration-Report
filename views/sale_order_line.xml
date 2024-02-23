@@ -8,7 +8,7 @@
     <field name="inherit_id" ref="sale.view_order_form"/>
     <field name="arch" type="xml">
       <xpath expr="//form[1]/sheet[1]/notebook[1]/page[@name='order_lines']/field[@name='order_line']/form[1]/group[1]/group[2]/field[@name='analytic_tag_ids']" position="after">
-        <field name="x_omit_from_licence_expiration_report" widget="boolean_toggle" help="Turn ON to exclude this product from future License Expiration Reports"/>
+        <field name="x_omit_from_licence_expiration_report" widget="boolean_toggle" help="Turn ON to exclude this product, for this Sale Order, from future License Expiration Reports"/>
       </xpath>
     </field>
   </record>
