@@ -195,7 +195,7 @@ class LicenseExpirationReport(models.Model):
                         report_data_dict[product][days_until_expiry] = inv_lines_data_list
 
             if not self.check_if_any_data_found(report_data_dict):
-                self.log('No data found', 'get_and_format_data')
+                self.log_message('No data found', 'get_and_format_data')
                 return {}
 
             # raise UserError(f'report_data_dict:\n{report_data_dict}')
@@ -284,6 +284,7 @@ class LicenseExpirationReport(models.Model):
                 'email_to': self.get_config_param('licence_expiration_report.recipient_email'),
                 'email_from': self.get_config_param('licence_expiration_report.sender_email'),
                 'email_cc': self.get_config_param('licence_expiration_report.cc_email'),
+                'reply_to': self.get_config_param('licence_expiration_report.reply_to_email'),
                 'subject': subject,
                 'body_html': body,
                 'attachment_ids': [(0, 0, {'name': attachment[0], 'datas': attachment[1]})],

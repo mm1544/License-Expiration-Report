@@ -10,10 +10,6 @@
       <xpath expr="//form[1]/sheet[1]/notebook[1]/page[@name='order_lines']/field[@name='order_line']/form[1]/group[1]/group[2]/field[@name='analytic_tag_ids']" position="after">
         <field name="x_omit_from_licence_expiration_report" widget="boolean_toggle"/>
       </xpath>
-
-      <!-- <xpath expr="//notebook/field[@name='analytic_tag_ids']" position="after">
-        <field name="x_omit_from_licence_expiration_report" widget="boolean_toggle"/>
-      </xpath> -->
     </field>
   </record>
 </odoo>

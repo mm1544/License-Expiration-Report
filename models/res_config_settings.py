@@ -13,6 +13,9 @@ class ResConfigSettings(models.TransientModel):
     cc_email = fields.Char(
         string='CC Email', config_parameter='licence_expiration_report.cc_email')
 
+    reply_to_email = fields.Char(
+        string='Reply to Email', config_parameter='licence_expiration_report.reply_to_email')
+
     time_checkpoints = fields.Char(string='Time Checkpoints', config_parameter='licence_expiration_report.time_checkpoints',
                                    help='Comma separated numbers e.g. "14, 30, 60, 90"')
 
