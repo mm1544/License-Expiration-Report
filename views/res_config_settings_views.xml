@@ -10,6 +10,7 @@
           <div id="licence_expiration_report">
             <h2>Licence Expiration Report Settings</h2>
             <div class="row mt16 o_settings_container" id="licence_expiration_report_settings_1">
+
               <div class="col-12 col-lg-6 o_setting_box">
                 <div class="o_setting_right_pane">
                   <div class="w-100">
@@ -21,9 +22,7 @@
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div class="row mt16 o_settings_container" id="licence_expiration_report_settings_2">
               <div class="col-12 col-lg-6 o_setting_box">
                 <div class="o_setting_right_pane">
                   <div class="w-100">
@@ -35,9 +34,7 @@
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div class="row mt16 o_settings_container" id="licence_expiration_report_settings_3">
               <div class="col-12 col-lg-6 o_setting_box">
                 <div class="o_setting_right_pane">
                   <div class="w-100">
@@ -49,9 +46,7 @@
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div class="row mt16 o_settings_container" id="licence_expiration_report_settings_3_1">
               <div class="col-12 col-lg-6 o_setting_box">
                 <div class="o_setting_right_pane">
                   <div class="w-100">
@@ -63,9 +58,7 @@
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div class="row mt16 o_settings_container" id="licence_expiration_report_settings_4">
               <div class="col-12 col-lg-6 o_setting_box">
                 <div class="o_setting_right_pane">
                   <div class="w-100">
@@ -77,9 +70,7 @@
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div class="row mt16 o_settings_container" id="licence_expiration_report_settings_5">
               <div class="col-12 col-lg-6 o_setting_box">
                 <div class="o_setting_right_pane">
                   <div class="w-100">
