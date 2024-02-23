@@ -51,6 +51,20 @@
               </div>
             </div>
 
+            <div class="row mt16 o_settings_container" id="licence_expiration_report_settings_3_1">
+              <div class="col-12 col-lg-6 o_setting_box">
+                <div class="o_setting_right_pane">
+                  <div class="w-100">
+                    <span class="o_form_label">Reply To Email</span>
+                  </div>
+                  <div class="mt16">
+                    <field name="reply_to_email"/>
+                    <br/>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="row mt16 o_settings_container" id="licence_expiration_report_settings_4">
               <div class="col-12 col-lg-6 o_setting_box">
                 <div class="o_setting_right_pane">
@@ -83,21 +97,5 @@
         </xpath>
       </field>
     </record>
-
-    <!-- <record id="licence_expiration_report_config_settings_action" model="ir.actions.act_window">
-      <field name="name">Licence Expiration Report Settings</field>
-      <field name="type">ir.actions.act_window</field>
-      <field name="res_model">res.config.settings</field>
-      <field name="view_mode">form</field>
-
-      <field name="view_id" ref="stock.res_config_settings_view_form"/>
-      <field name="target">inline</field>
-      <field name="context">{'module': 'stock.picking.type', 'bin_size': False}</field>
-    </record>
-
-    <menuitem id="licence_expiration_report_config_menu" name="Licence Expiration Settings" parent="stock.menu_stock_config_settings" sequence="2" action="licence_expiration_report_config_settings_action"/> -->
-
-
   </data>
 </odoo>
-
