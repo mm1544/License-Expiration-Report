@@ -47,7 +47,8 @@ class LicenseExpirationReport(models.Model):
             # 'sale.order' ir.model #280
             'res_model_id': 280,
             'user_id': sale_order.user_id.id,
-            'note': f'Note: {info_str}. \n\nProduct: {inv_line.product_id.display_name}.',
+            # 'note': f'Note: {info_str}. \n\nProduct: {inv_line.product_id.display_name}.',
+            'note': f'Licence expires on  {date_deadline}. \n\nProduct: {inv_line.product_id.display_name}.',
             'display_name': f'{inv_line.id}',
             'summary': activity_summary,
         })
