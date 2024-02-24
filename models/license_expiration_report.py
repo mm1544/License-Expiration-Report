@@ -25,6 +25,7 @@ class LicenseExpirationReport(models.Model):
         activity_summary = f'Licence Expiration (#{inv_line.id})'
         sale_order_model_id = 280
         date_deadline = datetime.now() + timedelta(days=days_until_expiration)
+        date_deadline_formated = date_deadline.strftime('%d-%m-%Y')
         if not inv_line.sale_line_ids:
             _logger.error(f"No sale_line_ids on inv_line #{inv_line.id}")
         if not inv_line.sale_line_ids[0].order_id:
@@ -48,7 +49,7 @@ class LicenseExpirationReport(models.Model):
             'res_model_id': 280,
             'user_id': sale_order.user_id.id,
             # 'note': f'Note: {info_str}. \n\nProduct: {inv_line.product_id.display_name}.',
-            'note': f'Licence expires on  {date_deadline}. \n\nProduct: {inv_line.product_id.display_name}.',
+            'note': f'Licence expires on  {date_deadline_formated}. \n\nProduct: {inv_line.product_id.display_name}.',
             'display_name': f'{inv_line.id}',
             'summary': activity_summary,
         })
