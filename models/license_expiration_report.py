@@ -133,7 +133,7 @@ class LicenseExpirationReport(models.Model):
         else:
             expiration_date = None
 
-        sale_order = self.get_sale_order_name(inv_line)
+        sale_order = self.get_sale_order_obj(inv_line)
 
         return [
             self.get_note_text(days_until_expiry),
