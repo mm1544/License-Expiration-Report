@@ -97,6 +97,17 @@ class LicenseExpirationReport(models.Model):
             so_line.order_id.name for so_line in inv_line.sale_line_ids]
         return ', '.join(so_name_list) if so_name_list else ''
 
+    def get_sale_order_obj(self, inv_line):
+        """
+        Extracts the first sale order object from the invoice line.
+        """
+        try:
+            # Attempt to return the first sale order object if it exists
+            return inv_line.sale_line_ids and inv_line.sale_line_ids[0].order_id or None
+        except Exception as e:
+            _logger.error('Failed to extract sale order object: %s', e)
+            return None
+
     def process_field(self, field_value):
         """
           Formats a field value for report.
@@ -122,6 +133,8 @@ class LicenseExpirationReport(models.Model):
         else:
             expiration_date = None
 
+        sale_order = self.get_sale_order_name(inv_line)
+
         return [
             self.get_note_text(days_until_expiry),
             self.process_field(inv_line.product_id.default_code),
@@ -133,9 +146,8 @@ class LicenseExpirationReport(models.Model):
             self.process_field(expiration_date.strftime(
                 '%Y-%m-%d')) if expiration_date else '/',
             self.process_field(self.get_sale_order_name(inv_line)),
-            # self.process_field(invoice.partner_id.display_name),
             self.process_field(invoice.partner_shipping_id.display_name),
-            self.process_field(invoice.invoice_user_id.name),
+            self.process_field(sale_order.user_id.name if sale_order else '/'),
             self.process_field(inv_line.product_id.id),
         ]
 
