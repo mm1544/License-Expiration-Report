@@ -28,8 +28,10 @@ class LicenseExpirationReport(models.Model):
         date_deadline_formated = date_deadline.strftime('%d/%m/%Y')
         if not inv_line.sale_line_ids:
             _logger.error(f"No sale_line_ids on inv_line #{inv_line.id}")
+            return None
         if not inv_line.sale_line_ids[0].order_id:
             _logger.error(f"No SO associated with inv_line #{inv_line.id}")
+            return None
 
         sale_order = inv_line.sale_line_ids[0].order_id
 
@@ -40,7 +42,7 @@ class LicenseExpirationReport(models.Model):
             ('summary', '=', activity_summary)])
 
         if existing_activity:
-            return
+            return None
 
         self.env['mail.activity'].create({
             'date_deadline': date_deadline,
@@ -48,7 +50,6 @@ class LicenseExpirationReport(models.Model):
             # 'sale.order' ir.model #280
             'res_model_id': 280,
             'user_id': sale_order.user_id.id,
-            # 'note': f'Note: {info_str}. \n\nProduct: {inv_line.product_id.display_name}.',
             'note': f'<div style="margin-top: 5px;">Licence expires on  <strong>{date_deadline_formated}</strong>.</div><div style="margin-top: 5px;">Product: {inv_line.product_id.display_name}.</div>',
             'display_name': f'{inv_line.id}',
             'summary': activity_summary,
@@ -125,6 +126,15 @@ class LicenseExpirationReport(models.Model):
         else:
             return 'Expires today'
 
+    def get_salesperson_from_so_partner(self, inv_line):
+        sale_order = self.get_sale_order_obj(inv_line)
+        if not sale_order:
+            return None
+        if sale_order.partner_id.user_id:
+            return sale_order.partner_id.user_id.name
+        else:
+            return None
+
     def process_invoice_line(self, inv_line, invoice, product, days_until_expiry):
         if invoice.invoice_date and product.x_licence_length_months:
             expiration_date = invoice.invoice_date + \
@@ -132,8 +142,6 @@ class LicenseExpirationReport(models.Model):
                     months=product.x_licence_length_months)
         else:
             expiration_date = None
-
-        sale_order = self.get_sale_order_obj(inv_line)
 
         return [
             self.get_note_text(days_until_expiry),
@@ -147,7 +155,7 @@ class LicenseExpirationReport(models.Model):
                 '%Y-%m-%d')) if expiration_date else '/',
             self.process_field(self.get_sale_order_name(inv_line)),
             self.process_field(invoice.partner_shipping_id.display_name),
-            self.process_field(sale_order.user_id.name if sale_order else '/'),
+            self.process_field(self.get_salesperson_from_so_partner(inv_line)),
             self.process_field(inv_line.product_id.id),
         ]
 
